@@ -32,6 +32,7 @@ class MainActivity : Activity() {
     private lateinit var modeHint: TextView
     private lateinit var freezeButton: TextView
     private lateinit var freezeHint: TextView
+    private var legalDialog: Dialog? = null
     private val ui = Handler(Looper.getMainLooper())
     private val hideHint = Runnable { if (::modeHint.isInitialized) modeHint.visibility = View.GONE }
 
@@ -45,7 +46,10 @@ class MainActivity : Activity() {
         if (android.os.Build.VERSION.SDK_INT >= 30) {
             window.insetsController?.setSystemBarsAppearance(0, android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS or android.view.WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS)
         }
-        if (!AppState.isFrozen(this)) {
+        if (!LegalDocs.isAccepted(this)) {
+            stopService(Intent(this, BubbleService::class.java))
+        }
+        if (!AppState.isFrozen(this) && LegalDocs.isAccepted(this)) {
             intent?.getStringExtra("tool")?.let { t ->
                 val i = Intent(this, BubbleService::class.java).apply {
                     putExtra("tool", t)
@@ -148,9 +152,9 @@ class MainActivity : Activity() {
         })
 
         root.postDelayed({
-            val p = getSharedPreferences(BubbleService.PREFS, MODE_PRIVATE)
-            if (!p.getBoolean("guide_seen", false)) showGuide()
-        }, 600)
+            if (isFinishing || isDestroyed) return@postDelayed
+            if (!LegalDocs.isAccepted(this)) showLegalConsent() else maybeShowGuide()
+        }, 350)
 
         val scroll = android.widget.ScrollView(this).apply {
             isFillViewport = true
@@ -161,6 +165,10 @@ class MainActivity : Activity() {
     }
 
     private fun toggleVoice() {
+        if (!LegalDocs.isAccepted(this)) {
+            showLegalConsent()
+            return
+        }
         if (AppState.isFrozen(this)) {
             Toast.makeText(this, "IRA is frozen. Tap Resume first.", Toast.LENGTH_SHORT).show()
             return
@@ -194,6 +202,7 @@ class MainActivity : Activity() {
     }
 
     private fun startWantedService() {
+        if (!LegalDocs.isAccepted(this)) return
         if (AppState.isFrozen(this)) return
         val prefs = getSharedPreferences(BubbleService.PREFS, MODE_PRIVATE)
         if (!prefs.getBoolean("wake_requested", false)) return
@@ -275,12 +284,18 @@ class MainActivity : Activity() {
 
     override fun onStart() {
         super.onStart()
-        startWantedService()
+        if (LegalDocs.isAccepted(this)) startWantedService()
     }
 
     override fun onResume() {
         super.onResume()
         refresh()
+    }
+
+    override fun onDestroy() {
+        legalDialog?.dismiss()
+        legalDialog = null
+        super.onDestroy()
     }
 
     override fun onRequestPermissionsResult(
@@ -473,6 +488,8 @@ class MainActivity : Activity() {
             cloudKey.isNotBlank(), true) { showCloudKeyDialog() })
         rows.addView(Ui.divider(this))
         rows.addView(Ui.row(this, "How to use", "Guide, examples, tooltips", "Open", false) { showGuide() })
+        rows.addView(Ui.divider(this))
+        rows.addView(Ui.row(this, "Privacy and terms", "What IRA sees, sends, and why", "Open", false) { showLegalHub() })
     }
 
     private fun showCloudKeyDialog() {
@@ -573,6 +590,10 @@ class MainActivity : Activity() {
     }
 
     private fun startReelsService() {
+        if (!LegalDocs.isAccepted(this)) {
+            showLegalConsent()
+            return
+        }
         if (AppState.isFrozen(this)) return
         if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) return
         val prefs = getSharedPreferences(BubbleService.PREFS, MODE_PRIVATE)
@@ -611,7 +632,185 @@ class MainActivity : Activity() {
         ui.postDelayed(hideHint, if (clickable) 15000 else 8000)
     }
 
+    private fun openLegal(id: String) {
+        startActivity(Intent(this, LegalActivity::class.java).putExtra(LegalDocs.EXTRA_DOC, id))
+    }
+
+    private fun legalLink(label: String, onClick: () -> Unit): TextView {
+        return Ui.text(this, label, 13f, Ui.ACCENT, true).apply {
+            gravity = Gravity.CENTER_VERTICAL
+            minHeight = Ui.dp(this@MainActivity, 44)
+            setPadding(0, Ui.dp(this@MainActivity, 8), 0, Ui.dp(this@MainActivity, 8))
+            isClickable = true
+            isFocusable = true
+            setOnClickListener { onClick() }
+        }
+    }
+
+    private fun legalLinkRow(vararg links: Pair<String, () -> Unit>): LinearLayout {
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            links.forEach { (label, action) ->
+                addView(legalLink(label, action), LinearLayout.LayoutParams(
+                    0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f
+                ))
+            }
+        }
+    }
+
+    private fun maybeShowGuide() {
+        if (!LegalDocs.isAccepted(this)) return
+        val p = getSharedPreferences(BubbleService.PREFS, MODE_PRIVATE)
+        if (!p.getBoolean("guide_seen", false)) showGuide()
+    }
+
+    private fun showLegalConsent() {
+        if (isFinishing || isDestroyed) return
+        if (legalDialog?.isShowing == true) return
+        val d = Dialog(this)
+        legalDialog = d
+        val box = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(Ui.dp(this@MainActivity, 22), Ui.dp(this@MainActivity, 20),
+                Ui.dp(this@MainActivity, 22), Ui.dp(this@MainActivity, 16))
+            background = Ui.rounded(
+                Ui.SURFACE, Ui.dp(this@MainActivity, 20),
+                Ui.dp(this@MainActivity, 1), Ui.BORDER
+            )
+        }
+        box.addView(Ui.text(this, "Before you start", 22f, Ui.BONE, true))
+        box.addView(Ui.text(this,
+            "IRA is a voice assistant. It needs your agreement before it can start. Android asks for microphone, notification, and other permissions separately when a feature needs them, and you can decline those.",
+            13f, Ui.MUTED).apply {
+            setPadding(0, Ui.dp(this@MainActivity, 6), 0, Ui.dp(this@MainActivity, 10))
+            setLineSpacing(Ui.dp(this@MainActivity, 2).toFloat(), 1f)
+        })
+        box.addView(Ui.text(this,
+            "Wake-word audio stays on this phone. Most command audio is transcribed by Android's speech service, which may use Google. When cloud chat is on, your request and recent conversation can go to Pollinations or Google Gemini. You can turn cloud chat off in the app.",
+            13f, Ui.BONE).apply {
+            setPadding(0, 0, 0, Ui.dp(this@MainActivity, 10))
+            setLineSpacing(Ui.dp(this@MainActivity, 2).toFloat(), 1f)
+        })
+        box.addView(Ui.text(this,
+            "By tapping Accept, you confirm that you are at least 18 years old, or that you have permission from a parent or legal guardian, and you agree to the Terms of Service, Privacy Policy, and Acceptable Use Policy. Read the Permissions and Data guide to see what each Android permission does.",
+            13f, Ui.BONE).apply {
+            setLineSpacing(Ui.dp(this@MainActivity, 2).toFloat(), 1f)
+        })
+        box.addView(legalLinkRow(
+            "Privacy Policy" to { openLegal("privacy") },
+            "Terms of Service" to { openLegal("terms") }
+        ), LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
+        ))
+        box.addView(legalLinkRow(
+            "Acceptable Use" to { openLegal("acceptable") },
+            "Permissions and Data" to { openLegal("permissions") }
+        ), LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
+        ))
+
+        val accept = Ui.text(this, "Accept and continue", 15f, Ui.INK, true).apply {
+            gravity = Gravity.CENTER
+            setPadding(0, Ui.dp(this@MainActivity, 14), 0, Ui.dp(this@MainActivity, 14))
+            background = Ui.rounded(Ui.ACCENT, Ui.dp(this@MainActivity, 24))
+            isClickable = true
+            isFocusable = true
+            setOnClickListener {
+                LegalDocs.accept(this@MainActivity)
+                d.dismiss()
+                refresh()
+                startWantedService()
+                maybeShowGuide()
+            }
+        }
+        box.addView(accept, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
+        ).apply { topMargin = Ui.dp(this@MainActivity, 4) })
+        val decline = Ui.text(this, "Decline and close", 14f, Ui.MUTED, true).apply {
+            gravity = Gravity.CENTER
+            minHeight = Ui.dp(this@MainActivity, 44)
+            setPadding(0, Ui.dp(this@MainActivity, 12), 0, Ui.dp(this@MainActivity, 10))
+            isClickable = true
+            isFocusable = true
+            setOnClickListener {
+                d.dismiss()
+                finish()
+            }
+        }
+        box.addView(decline, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
+        ))
+        val scroll = android.widget.ScrollView(this).apply {
+            isFillViewport = true
+            addView(box, android.widget.FrameLayout.LayoutParams(
+                android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+                android.widget.FrameLayout.LayoutParams.WRAP_CONTENT
+            ))
+        }
+        d.setContentView(scroll)
+        d.setCanceledOnTouchOutside(false)
+        d.setOnCancelListener { finish() }
+        d.setOnDismissListener { if (legalDialog === d) legalDialog = null }
+        d.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+        d.show()
+        val dm = resources.displayMetrics
+        val width = (dm.widthPixels - Ui.dp(this, 32)).coerceAtMost(Ui.dp(this, 380))
+        val height = (dm.heightPixels - Ui.dp(this, 80)).coerceAtMost(Ui.dp(this, 620))
+        d.window?.setLayout(width, height)
+    }
+
+    private fun showLegalHub() {
+        if (!LegalDocs.isAccepted(this)) {
+            showLegalConsent()
+            return
+        }
+        val d = Dialog(this)
+        val box = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(Ui.dp(this@MainActivity, 18), Ui.dp(this@MainActivity, 18),
+                Ui.dp(this@MainActivity, 18), Ui.dp(this@MainActivity, 12))
+            background = Ui.rounded(
+                Ui.SURFACE, Ui.dp(this@MainActivity, 20),
+                Ui.dp(this@MainActivity, 1), Ui.BORDER
+            )
+        }
+        box.addView(Ui.text(this, "Privacy and terms", 22f, Ui.BONE, true))
+        box.addView(Ui.text(this, "Read the documents that apply to this app.", 13f, Ui.MUTED).apply {
+            setPadding(0, Ui.dp(this@MainActivity, 6), 0, Ui.dp(this@MainActivity, 10))
+        })
+        LegalDocs.docs.forEachIndexed { index, doc ->
+            box.addView(Ui.row(this, doc.title, doc.subtitle, "Read", false) {
+                d.dismiss()
+                openLegal(doc.id)
+            })
+            if (index < LegalDocs.docs.lastIndex) box.addView(Ui.divider(this))
+        }
+        val close = Ui.text(this, "Close", 15f, Ui.INK, true).apply {
+            gravity = Gravity.CENTER
+            setPadding(0, Ui.dp(this@MainActivity, 12), 0, Ui.dp(this@MainActivity, 12))
+            background = Ui.rounded(Ui.ACCENT, Ui.dp(this@MainActivity, 24))
+            isClickable = true
+            isFocusable = true
+            setOnClickListener { d.dismiss() }
+        }
+        box.addView(close, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
+        ).apply { topMargin = Ui.dp(this@MainActivity, 14) })
+        d.setContentView(box)
+        d.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+        val dm = resources.displayMetrics
+        d.window?.setLayout(
+            (dm.widthPixels - Ui.dp(this, 32)).coerceAtMost(Ui.dp(this, 380)),
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        )
+        d.show()
+    }
+
     private fun showGuide() {
+        if (!LegalDocs.isAccepted(this)) {
+            showLegalConsent()
+            return
+        }
         val d = Dialog(this)
         val box = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL

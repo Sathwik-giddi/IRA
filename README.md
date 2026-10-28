@@ -107,7 +107,14 @@ If a key is ever committed, revoke it immediately and rewrite the history before
 
 ## Privacy and terms
 
-Privacy and terms documents are not bundled in this revision. Add them before distributing the app publicly.
+- [Privacy Policy](legal/PRIVACY_POLICY.md)
+- [Terms of Service](legal/TERMS_OF_SERVICE.md)
+- [Acceptable Use Policy](legal/ACCEPTABLE_USE.md)
+- [Permissions and Data Flow](legal/PERMISSIONS_AND_DATA.md)
+
+These are drafts. Replace the bracketed operator, contact, jurisdiction, and address placeholders before publishing. Google Play requires a public HTTPS privacy policy URL; a private repository URL is not sufficient. See [legal/README.md](legal/README.md) for the publication checklist.
+
+The app bundles offline copies and shows a first-launch consent dialog. Use the Privacy and terms row in the app to read the full documents. After editing a public legal document, run `./scripts/sync-legal-assets.sh` and bump `LegalDocs.VERSION`.
 
 ## Status
 

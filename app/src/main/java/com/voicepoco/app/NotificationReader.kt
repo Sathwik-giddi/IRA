@@ -7,6 +7,10 @@ import android.service.notification.StatusBarNotification
 class NotificationReader : NotificationListenerService() {
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
+        if (!LegalDocs.isAccepted(this)) {
+            synchronized(recent) { recent.clear() }
+            return
+        }
         if (AppState.isFrozen(this)) return
         if (sbn.packageName == packageName || sbn.isOngoing) return
         val e = sbn.notification.extras

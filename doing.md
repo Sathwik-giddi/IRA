@@ -356,3 +356,34 @@ Status: dataset generator, scorer and runner being written now.
 - Installed over the existing `com.voicepoco.app` package. No second app or icon.
 - Verified on device: tapping `Freeze IRA` shows `PAUSED` and `IRA is frozen.`, prefs write `frozen=true`, and the state survived a full force-stop and relaunch. Tapping `Resume IRA` clears the freeze, restores the normal screen, and writes `frozen=false`.
 - No audio was started during install or freeze/resume testing; `wake_requested` remains `false`.
+
+## 2026-10-28 23:27 - Legal package draft
+- Audited the runtime data flow before writing: CloudBrain endpoints and history, accessibility screen capture, notification retention, contacts and SMS resolution, call state, preferences, notes, and debug logging.
+- Confirmed cloud chat is on by default; Pollinations is the default provider, Gemini is tried first when a key is present, and web research uses DuckDuckGo HTML search.
+- Correction during audit: wake-word and barge-in audio use on-device Vosk, but most command transcription uses Android `SpeechRecognizer`, which may use a network service such as Google. Short call prompts use Vosk. Replies use Android `TextToSpeech`. The documents now disclose both and note that the cloud chat toggle does not disable them.
+- Wrote `legal/PRIVACY_POLICY.md`, `legal/TERMS_OF_SERVICE.md`, `legal/ACCEPTABLE_USE.md`, and `legal/PERMISSIONS_AND_DATA.md`.
+- Wrote `legal/README.md` with placeholder, hosting, Play policy, and release checklist notes.
+- Wrote `legal/PLAY_DATA_SAFETY.md` as a working worksheet for the Play Console form, with candidate answers and open classification questions for free-form text, message content, and Android speech audio.
+- Linked the documents from `README.md`.
+- No app code, APK, release, or phone state changed. Documents are not committed.
+- Open compliance items: public HTTPS privacy URL, operator and jurisdiction placeholders, release-build logging cleanup, and Play review of Accessibility, SMS, Call Log, `QUERY_ALL_PACKAGES`, overlay, notification access, and foreground microphone use.
+
+## 2026-10-28 23:42 - In-app legal consent
+- Added `LegalDocs.kt` with versioned acceptance in `vp_prefs`, offline document loading, and a small Markdown-to-HTML renderer for headings, lists, tables, bold text, code, and links.
+- Added `LegalActivity.kt`, a dark full-screen viewer for Privacy Policy, Terms of Service, Acceptable Use, and Permissions and Data. External links open in the browser.
+- Added a first-launch consent dialog in `MainActivity`. It explains wake-word, speech recognition, cloud providers, and the 18+ / terms agreement. Privacy, Terms, and Acceptable use open the full in-app documents. Accept stores the legal version; Decline closes the app.
+- Gated tool-intent service starts, the wake service, and the orb until the current legal version is accepted. A version bump in `LegalDocs.VERSION` shows the consent dialog again.
+- Added a Privacy and terms row to the main screen that opens the four documents.
+- Bundled the four public documents in `app/src/main/assets/legal/` and added `scripts/sync-legal-assets.sh` to copy them from `legal/`.
+- `./gradlew :app:lintDebug :app:assembleDebug` passes. APK is `app/build/outputs/apk/debug/app-debug.apk`.
+- Not installed or run on a device. The connected phone still blocks sideloads with `INSTALL_FAILED_USER_RESTRICTED: Install canceled by user`, so the consent flow has not been visually tested. No audio was started.
+
+## 2026-10-28 23:48 - Consent gates and layout hardening
+- Added service-level consent enforcement: `BubbleService` stops on create and start command, `NotificationReader` drops and clears notifications, and `AssistantService` ignores accessibility events and blocks every screen, call, and WhatsApp action without the current legal version.
+- `MainActivity` stops a running wake service when consent is missing, so a version bump cannot leave a foreground listener active.
+- Reworked the consent document links into two weighted rows: Privacy Policy, Terms of Service, Acceptable Use, and Permissions and Data. Added the Permissions and Data link before acceptance.
+- Corrected the consent copy to distinguish legal agreement from Android runtime permissions and to match the Terms on age and guardian permission.
+- Added a destroyed-activity guard to the delayed consent prompt.
+- Updated `legal/README.md` with the gate behavior and a UI test checklist.
+- `./gradlew :app:lintDebug :app:assembleDebug` passes after these changes. APK is `app/build/outputs/apk/debug/app-debug.apk`.
+- Install remains blocked by MIUI with `INSTALL_FAILED_USER_RESTRICTED: Install canceled by user`; the flow still needs visual and device testing. No audio was started.

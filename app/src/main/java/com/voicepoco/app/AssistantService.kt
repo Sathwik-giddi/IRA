@@ -42,6 +42,11 @@ class AssistantService : AccessibilityService() {
     override fun onServiceConnected() {
         super.onServiceConnected()
         instance = this
+        if (consentMissing()) {
+            nodes = emptyList()
+            Log.i(TAG, "connected, consent missing")
+            return
+        }
         if (AppState.isFrozen(this)) nodes = emptyList()
         Log.i(TAG, "connected")
     }
@@ -53,6 +58,10 @@ class AssistantService : AccessibilityService() {
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event == null) return
+        if (consentMissing()) {
+            nodes = emptyList()
+            return
+        }
         if (frozen()) {
             nodes = emptyList()
             return
@@ -68,8 +77,10 @@ class AssistantService : AccessibilityService() {
 
     private fun frozen(): Boolean = AppState.isFrozen(this)
 
+    private fun consentMissing(): Boolean = !LegalDocs.isAccepted(this)
+
     private fun capture() {
-        if (frozen()) {
+        if (consentMissing() || frozen()) {
             nodes = emptyList()
             return
         }
@@ -116,6 +127,7 @@ class AssistantService : AccessibilityService() {
     }
 
     fun tapCommand(phrase: String): String {
+        if (consentMissing()) return "IRA needs consent"
         if (frozen()) return "IRA is frozen"
         val q = phrase.lowercase().trim()
         val best = nodes
@@ -132,6 +144,7 @@ class AssistantService : AccessibilityService() {
     }
 
     fun scrollCommand(direction: String): String {
+        if (consentMissing()) return "IRA needs consent"
         if (frozen()) return "IRA is frozen"
         val dm = resources.displayMetrics
         val midX = dm.widthPixels / 2f
@@ -153,6 +166,7 @@ class AssistantService : AccessibilityService() {
     }
 
     fun typeCommand(phrase: String): String {
+        if (consentMissing()) return "IRA needs consent"
         if (frozen()) return "IRA is frozen"
         val root = rootInActiveWindow ?: return "No screen to type into"
         var target = root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT)
@@ -193,6 +207,7 @@ class AssistantService : AccessibilityService() {
     }
 
     fun readScreen(): String {
+        if (consentMissing()) return "IRA needs consent."
         if (frozen()) return "IRA is frozen."
         val root = rootInActiveWindow ?: return "Nothing readable on screen."
         val parts = ArrayList<String>()
@@ -207,7 +222,7 @@ class AssistantService : AccessibilityService() {
     }
 
     fun clickTexts(vararg labels: String): Boolean {
-        if (frozen()) return false
+        if (consentMissing() || frozen()) return false
         val wanted = labels.map { it.lowercase() }
         for (n in nodes) {
             if (!n.clickable) continue
@@ -230,16 +245,19 @@ class AssistantService : AccessibilityService() {
     }
 
     fun backCommand(): String {
+        if (consentMissing()) return "IRA needs consent"
         if (frozen()) return "IRA is frozen"
         return if (performGlobalAction(GLOBAL_ACTION_BACK)) "Back" else "Back failed"
     }
 
     fun homeCommand(): String {
+        if (consentMissing()) return "IRA needs consent"
         if (frozen()) return "IRA is frozen"
         return if (performGlobalAction(GLOBAL_ACTION_HOME)) "Home" else "Home failed"
     }
 
     fun whatsappSend(contact: String, text: String, dry: Boolean): String {
+        if (consentMissing()) return "IRA needs consent"
         if (frozen()) return "IRA is frozen"
         val latch = CountDownLatch(1)
         val out = AtomicReference("WhatsApp timeout")
@@ -271,6 +289,7 @@ class AssistantService : AccessibilityService() {
         }
         tick = object : Runnable {
             override fun run() {
+                if (consentMissing()) { done("IRA needs consent"); return }
                 if (frozen()) { done("IRA is frozen"); return }
                 if (SystemClock.uptimeMillis() - started > 16000) { done("WhatsApp timed out at step " + step); return }
                 val ok: Boolean = when (step) {

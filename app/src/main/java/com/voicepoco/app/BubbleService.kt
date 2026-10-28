@@ -87,6 +87,11 @@ class BubbleService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        if (!LegalDocs.isAccepted(this)) {
+            AssistantService.LogI("legal consent missing -> stopSelf")
+            stopSelf()
+            return
+        }
         if (AppState.isFrozen(this)) {
             AssistantService.LogI("frozen -> stopSelf")
             stopSelf()
@@ -264,6 +269,11 @@ class BubbleService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (!LegalDocs.isAccepted(this)) {
+            AssistantService.LogI("legal consent missing -> stopSelf")
+            stopSelf()
+            return START_NOT_STICKY
+        }
         if (AppState.isFrozen(this)) {
             AssistantService.LogI("frozen -> stopSelf")
             stopSelf()
