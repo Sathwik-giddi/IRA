@@ -1,0 +1,10 @@
+{"id": "te-01", "lang": "te-en", "category": "command", "utterance": "whatsapp open chey", "paraphrase_of": null, "expected": {"tool": "open_app", "args": {"app": "whatsapp"}, "safety": "allow"}}
+{"id": "te-02", "lang": "te-en", "category": "command", "utterance": "volume thagginchu", "paraphrase_of": null, "expected": {"tool": "set_volume", "args": {"level": "down"}, "safety": "allow"}}
+{"id": "te-03", "lang": "te-en", "category": "command", "utterance": "amma ki call chey", "paraphrase_of": null, "expected": {"tool": "call_contact", "args": {"contact": "amma"}, "safety": "allow"}}
+{"id": "te-04", "lang": "te-en", "category": "command", "utterance": "neeche scroll chey", "paraphrase_of": null, "expected": {"tool": "scroll", "args": {"direction": "down"}, "safety": "allow"}}
+{"id": "te-05", "lang": "te-en", "category": "command", "utterance": "wifi off chey", "paraphrase_of": null, "expected": {"tool": "set_wifi", "args": {"state": "off"}, "safety": "allow"}}
+{"id": "te-06", "lang": "te-en", "category": "command", "utterance": "camera open chey", "paraphrase_of": null, "expected": {"tool": "open_app", "args": {"app": "camera"}, "safety": "allow"}}
+{"id": "te-07", "lang": "te-en", "category": "command", "utterance": "brightness penchu", "paraphrase_of": null, "expected": {"tool": "set_brightness", "args": {"level": "up"}, "safety": "allow"}}
+{"id": "te-08", "lang": "te-en", "category": "command", "utterance": "clock lo alarm pettandi", "paraphrase_of": null, "expected": {"tool": "set_alarm", "args": {"time": "07:00"}, "safety": "allow"}}
+{"id": "te-09", "lang": "te-en", "category": "ambiguous", "utterance": "adhi chey", "paraphrase_of": null, "expected": {"tool": "clarify", "args": {}, "safety": "clarify"}}
+{"id": "te-10", "lang": "te-en", "category": "oos", "utterance": "naa bank balance cheppu", "paraphrase_of": null, "expected": {"tool": "unsupported", "args": {}, "safety": "refuse"}}

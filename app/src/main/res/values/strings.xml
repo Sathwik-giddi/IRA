@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">IRA</string>
+    <string name="service_desc">Read-only screen inspector. Looks at the current screen to understand what the assistant can see. Sends nothing, touches nothing.</string>
+</resources>
