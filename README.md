@@ -13,7 +13,7 @@ This repository is private.
 - Command-line harness in `harness/`
 - Engineering notes in `doing.md` and `gap-analysis.md`
 
-Large GGUF language models are not stored in the repository. See [Models](#models).
+The two GGUF language models are attached to the private `models-v1` GitHub release. See [Models](#models).
 
 ## Requirements
 
@@ -73,14 +73,31 @@ The freeze switch stops the wake service and makes the accessibility and notific
 
 The Vosk model is committed because it is small enough for normal Git.
 
-The optional GGUF models are expected at the app's private files directory:
+Both GGUF models are attached to the private `models-v1` release:
+
+- `functiongemma-270m-it-Q4_K_M.gguf` (241 MB)
+- `Qwen2.5-1.5B-Instruct-Q4_K_M.gguf` (940 MB)
+
+Download them with GitHub CLI:
+
+```bash
+./scripts/fetch-models.sh
+```
+
+Or directly:
+
+```bash
+gh release download models-v1 -R Sathwik-giddi/IRA -D models --pattern '*.gguf'
+```
+
+The app expects the files in its private files directory:
 
 ```text
 /data/user/0/com.voicepoco.app/files/models/functiongemma-270m-it-Q4_K_M.gguf
 /data/user/0/com.voicepoco.app/files/models/Qwen2.5-1.5B-Instruct-Q4_K_M.gguf
 ```
 
-Large model files should be stored with Git LFS or downloaded separately. Do not commit a GGUF file above GitHub's 100 MB per-file limit without LFS.
+See `models/README.md` for checksums and the on-device install commands. The model files are release assets, not Git objects, because they exceed the free LFS storage limit.
 
 ## Secrets
 

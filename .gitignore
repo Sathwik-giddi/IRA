@@ -22,3 +22,4 @@ secrets.properties
 
 harness/results/
 app/src/main/assets/models/
+models/*.gguf
