@@ -4,7 +4,7 @@ Working log. Newest entry at the bottom. Timestamps are IST (Asia/Kolkata), mach
 
 ---
 
-## 2026-10-25 21:20 — Direction change accepted
+## 2026-10-25 21:20 - Direction change accepted
 
 User decision, recorded verbatim in intent:
 
@@ -15,12 +15,12 @@ Interpretation applied from here on:
 - The `when { lower.startsWith("open") ... }` command ladder is **not** the product. It is removed from the decision path.
 - Canned instructional replies ("Say open, tap, scroll, type, go back, or go home", the "Didn't catch that, say poco again" variants, "Mic had a hiccup") are removed. Replies come from the model / from the action result.
 - Intent → tool call is produced by an on-device LLM, not by string matching.
-- The tool schema (what the app *can* do) stays explicit — that is the app's API, not scripted conversation.
+- The tool schema (what the app *can* do) stays explicit - that is the app's API, not scripted conversation.
 - Rule parser survives only as a **labelled control** in the harness so we can prove the model beats it. It is deleted from the runtime path.
 
 ---
 
-## 2026-10-25 21:20 — Environment audit
+## 2026-10-25 21:20 - Environment audit
 
 | Item | Result |
 |---|---|
@@ -32,10 +32,10 @@ Interpretation applied from here on:
 
 ---
 
-## 2026-10-25 21:21 — Runtime + model decision
+## 2026-10-25 21:21 - Runtime + model decision
 
 - **FunctionGemma 270M IT** confirmed to exist: Gemma-3-270M fine-tune by Google for function calling; GGUF mirrors by `unsloth` and `bartowski`.
-- Chosen quant: `functiongemma-270m-it-Q4_K_M.gguf` — **241 MB**, fits the 4 GB budget with room for KV cache.
+- Chosen quant: `functiongemma-270m-it-Q4_K_M.gguf` - **241 MB**, fits the 4 GB budget with room for KV cache.
 - Runtime: **llama.cpp** (`ggml-org/llama.cpp`), arm64-v8a, CPU, mmap. Reasons:
   - GBNF grammar → output is guaranteed-shape JSON, no regex scraping.
   - mmap keeps RSS low on 4 GB devices.
@@ -50,7 +50,7 @@ Downloads started in parallel:
 
 ---
 
-## 2026-10-25 21:22 — Harness, still the gate
+## 2026-10-25 21:22 - Harness, still the gate
 
 Nothing about "no hardcoded" removes the need for measurement. Dataset v1 stays at 250 rows:
 
@@ -67,22 +67,22 @@ Pass rule: per-language gates (intent ≥ 90 %, args ≥ 90 %, safety ≥ 98 %, 
 
 Status: dataset generator, scorer and runner being written now.
 
-## 2026-10-25 22:30 — native perf root cause + routing
+## 2026-10-25 22:30 - native perf root cause + routing
 - Root cause of 7x slowdown: `CMAKE_BUILD_TYPE=Debug` in the app's externalNativeBuild (bench was Release). Forced Release in `app/src/main/cpp/CMakeLists.txt`. Result: pp 7 -> 165 tok/s, tg 4.8 -> 30-41 tok/s (llama-bench reference 188/43).
 - Second bug: `llama_batch_init` leaves `n_tokens = 0`; every decode was failing instantly. Set `batch.n_tokens = chunk` / `one.n_tokens = 1`.
-- Added `llama_log_set` bridge to android log (tag VP_LLAMA) — native errors were invisible before.
+- Added `llama_log_set` bridge to android log (tag VP_LLAMA) - native errors were invisible before.
 - Added per-session stats JNI `LlamaBridge.stats` (pp_tok/pp_ms/tg_tok/tg_ms/pp_tps/tg_tps) + `bench` backend in HarnessService writing `files/vp_bench.txt`.
 - 940-token all-tools prompt made the model refuse; added `ToolRouter` (word-boundary lexical match over tool hints) -> prompts 76-240 tokens, ~1.5-2.2 s/command.
 - `refuse` tool in the routed list causes false refusals ("whatsapp kholo" -> refuse). Removed from core routing; destructive/unsafe words still route it.
 - Early stop at `<end_function_call>` cut generation 40 -> 14-18 tokens.
 - Known open defects: `wifi band karo` -> state:on; `volume badhao` -> down (flaky); `delete all photos` -> target=all.
 
-## 2026-10-25 22:45 — argument polarity
+## 2026-10-25 22:45 - argument polarity
 - Added `ArgNormalizer`: canonicalizes 2-value enums (on/off, up/down) from the utterance ("band"->off, "chalu"->on, "kam"->down, "badhao"->up). The model still picks the tool and all other args; this only resolves the enum token.
 - Dropped "chalu" from open_app hints (it routed "wifi chalu karo" to open_app).
 - Observed device memory pressure during long runs: MemFree ~57 MB, SwapFree 2.3 GB -> tg collapsed 33 -> 4-5 t/s on later rows (weights evicted from page cache). Latency must be measured with cooldown and reported with memory state.
 
-## 2026-10-26 23:20 — full 250-row baseline after safety work
+## 2026-10-26 23:20 - full 250-row baseline after safety work
 
 - Root cause of the "slow model" was two stacked bugs, not the model: app lib was built
   `CMAKE_BUILD_TYPE=Debug`, and `llama_batch_init` left `n_tokens = 0` so every decode failed.
@@ -107,7 +107,7 @@ Status: dataset generator, scorer and runner being written now.
   p95 over 4 s, PSS 519 MB over the 450 MB gate. Remaining OOS misses are "email/cab/biriyani/AC"
   rows where the model answers with clarify or send_message.
 
-## 2026-10-26 23:57 — safety layer, production switch, final full run
+## 2026-10-26 23:57 - safety layer, production switch, final full run
 
 - Runner telemetry fixed: battery counter read is blocked in /sys on this device
   (Permission denied), so `charge_uah()` now falls back to `dumpsys battery` "Charge counter"
@@ -133,14 +133,14 @@ Status: dataset generator, scorer and runner being written now.
 - Only remaining safety miss is dest-06, where a mangled escape still yields
   contact="ravi ko 500 rupaye bhej do". Arg extraction (69% hi-en) is now the top gap.
 
-## 2026-10-27 — gap analysis vs original plan
+## 2026-10-27 - gap analysis vs original plan
 
 - Wrote gap-analysis.md (read-only; no code changed). Key finding: ToolExecutor has handlers for
   only 10 of 23 catalog tools; set_wifi/bluetooth/brightness/dnd/data, post_social, delete_files,
   uninstall_app, pay_money, share_location silently no-op on device although the harness scores them.
 - Roadmap P0: executors or explicit not-executed results; READ_CONTACTS onboarding; execution-level harness check.
 
-## 2026-10-27 — P0: executors for every catalog tool
+## 2026-10-27 - P0: executors for every catalog tool
 
 - ToolExecutor: set_wifi/set_data open the internet panel, set_bluetooth opens BT settings (apps cannot
   toggle these on Android 10+), set_brightness (needs Modify system settings), set_dnd (needs DND access),
@@ -150,7 +150,7 @@ Status: dataset generator, scorer and runner being written now.
 - Built and installed on device i7krsovwcmnbpfyx. Brain/decision path unchanged, so no harness re-run.
   Not yet verified on-device end to end (needs permissions granted by hand; A11y resets on install).
 
-## 2026-10-27 — persistent assistant card (Siri/Gemini-style)
+## 2026-10-27 - persistent assistant card (Siri/Gemini-style)
 
 - BubbleService: bubble no longer vanishes 900 ms after a reply. A bottom card shows heard text + result,
   stays 8 s idle (touch pauses the timer), dismisses via X, swipe down, tap outside or idle timeout.
@@ -158,7 +158,7 @@ Status: dataset generator, scorer and runner being written now.
   pending the app auto-listens again after 2.5 s. Wake word is re-armed 900 ms after each command.
 - Built and installed; not yet verified on-device (A11y resets on install).
 
-## 2026-10-27 — 15 new tools + notification reader
+## 2026-10-27 - 15 new tools + notification reader
 
 - New tools: set_timer, add_event, set_flashlight, set_hotspot, set_airplane, set_dark_mode,
   set_screen_timeout, set_battery_saver, set_ringer, open_settings, take_screenshot, media_control,
@@ -173,7 +173,7 @@ Status: dataset generator, scorer and runner being written now.
 - NOT covered by dataset: the 15 new tools have no rows, so their accuracy is unmeasured.
   Executors unverified on device.
 
-## 2026-10-27 — routines, memory, read_screen, new-tools dataset
+## 2026-10-27 - routines, memory, read_screen, new-tools dataset
 
 - New tools: run_routine (sleep/driving/meeting/outdoors/battery_low; fixed sequences of existing
   executors), remember/recall (local notes in SharedPreferences, max 50), read_screen (a11y text dump).
@@ -186,7 +186,7 @@ Status: dataset generator, scorer and runner being written now.
 - Not built: translation, smart home, camera/OCR, calendar reading, multi-turn context.
   Executors still unverified on device.
 
-## 2026-10-27 — continuous conversation
+## 2026-10-27 - continuous conversation
 
 - BubbleService: after every reply the app waits for TTS to finish (tts.isSpeaking poll, max 9 s), then
   listens again without the wake word. Silence/STT error, "thanks/bas/stop/bye", X, swipe down, tap
@@ -197,7 +197,7 @@ Status: dataset generator, scorer and runner being written now.
 - Regression commands.v1 unchanged (en 49/50, hi-en 79/90). Follow-up quality is not measured by any
   dataset yet and not verified on device.
 
-## 2026-10-27 11:23 — messaging layer (build)
+## 2026-10-27 11:23 - messaging layer (build)
 - Added `MessageSender.kt`: contact resolution (exact > prefix > word > contains; collapses duplicate numbers), silent SMS via `SmsManager` when `SEND_SMS` granted, honest handoff to `ACTION_SENDTO` otherwise.
 - Added `AssistantService.whatsappSend(contact,text,dry)`: launch WhatsApp -> `search_input` -> tap result -> `entry` -> `send`, 450ms retries, 16s cap, dry-run stops before send. Requires accessibility.
 - Added optional `app` param to `send_message`; scorer ignores extra args (verified `args_ok` only checks expected keys).
@@ -206,7 +206,7 @@ Status: dataset generator, scorer and runner being written now.
 - Verified on Poco: `Mom` resolved to `Mommy Main` (prefix outranks `Harsha Mom`/`Rakesh Mom`), SMS compose opened with body. WhatsApp dry-run blocked: accessibility is off and `settings put secure enabled_accessibility_services` is denied to shell on this MIUI.
 - Still blocked: command STT is `SpeechRecognizer` -> `error code=7` (network) / `5` (client); false wake hits from ambient audio. Next: `VoiceEngine` (single AudioRecord, Vosk wake+command, buffer, whisper fallback) and call announce/answer.
 
-## 2026-10-27 11:41 — UI rewrite (MainActivity + Ui.kt)
+## 2026-10-27 11:41 - UI rewrite (MainActivity + Ui.kt)
 - Replaced programmatic Button list with a quiet dark control surface: ink #0E0F0D, surface #171814, bone #F2EDE2, muted #A3A196, amber #E3A559.
 - Orb is the only primary action; state lives in kicker + headline, not repeated three times.
 - Capability rows (mic, screen control, messages, bubble, act) show real grant state: amber pill when missing, dot when granted.
@@ -215,7 +215,7 @@ Status: dataset generator, scorer and runner being written now.
 - Left grey edge bar also appears in Settings: MIUI system element, not our layout.
 - Store: a11y reset by adb install, now shows Enable again; needs one manual toggle.
 
-## 2026-10-27 12:03 — Stage 2: new tools, calls, modes, privilege UI
+## 2026-10-27 12:03 - Stage 2: new tools, calls, modes, privilege UI
 - ToolExecutor now handles answer_call, decline_call, set_mode, play_music, next_reel, media_control (play/pause/next/prev via MediaController), plus privileged wifi/data/bluetooth/airplane/dark/saver with panel fallback when root is absent; brightness falls back to root before asking for WRITE_SETTINGS.
 - call_contact places the call with ACTION_CALL when CALL_PHONE is granted, otherwise opens the dialer; resolves contact through MessageSender ranking and asks when a name is ambiguous.
 - ToolCatalog: added entries and Hinglish hints for answer_call, decline_call, play_music, next_reel, set_mode (8 allowed modes). ConfirmPolicy: per-tool questions (call, send, uninstall, data, post, pay, delete, share).
@@ -227,7 +227,7 @@ Status: dataset generator, scorer and runner being written now.
 - Test harness note: `adb shell am broadcast --es text "two words"` loses quotes and sends pkg=two; must wrap the whole device command in single quotes.
 - Still manual: accessibility toggle after each install, call/SMS grants, auto-answer preference; wake-word accuracy cannot be exercised over adb; no root/Shizuku on the test device.
 
-## 2026-10-27 12:12 — STT root cause fix, access row clarity
+## 2026-10-27 12:12 - STT root cause fix, access row clarity
 - Root cause of "what's that?" replies: the command phase was decoded by the Vosk wake model, a tiny English model built for "poco" and stop words. It cannot transcribe "open whatsapp".
 - Added CommandStt.kt: Android SpeechRecognizer, en-IN, partial results, 1 s complete-silence endpoint, 12 s watchdog, explicit error text. Wake model now only detects the wake word.
 - VoiceEngine gets an onWake callback; on wake it parks the loop and closes the mic. Its loop now refuses to reopen AudioRecord while paused, which fixes a race that could leave the mic open under SpeechRecognizer.
@@ -238,7 +238,7 @@ Status: dataset generator, scorer and runner being written now.
 - Device check: "stt start en-IN", "stt ready", error 7 with silence, no mic open during the listen window, engine reopens after the final. Build installed 12:11.
 - Caveat: one-breath "poco open whatsapp" can clip the first word; wake, wait for the beep, then speak. Offline accuracy depends on the phone speech service.
 
-## 2026-10-27 12:22 — Calls actually dial, fuzzy contact names
+## 2026-10-27 12:22 - Calls actually dial, fuzzy contact names
 - Diagnosed: "call Phanindra" reached call_contact, then the app asked "Call Phanindra?" and listened for yes. No call was placed, which is why nothing happened.
 - Removed the confirmation gate from call_contact and send_message. An explicit call or SMS now runs directly, matching the earlier "send silently" instruction. Ambiguous names still ask which contact.
 - Added fuzzy contact matching in MessageSender: if the provider filter returns nothing, read phone rows and rank by edit distance (limit 2 for names of 8+ chars, 1 below). "phanindra" now finds the saved "Phanidra" contact.
@@ -247,7 +247,7 @@ Status: dataset generator, scorer and runner being written now.
 - Verified lookups: "nanna garu" -> Nanna Garu, "annaya" -> Annaya 2, "phanindra" -> Phanidra. All matches=1 with numbers.
 - Build installed 12:21. Calls use ACTION_CALL because CALL_PHONE is granted; without it the dialer opens prefilled.
 
-## 2026-10-27 12:31 — Reels deep link, first-run guide, mode tooltips
+## 2026-10-27 12:31 - Reels deep link, first-run guide, mode tooltips
 - Reels mode was only launching Instagram home. It now tries instagram://reels_home first (verified on device: lands on the Reels tab), then instagram.com/reels inside the app, then YouTube shorts, then the Instagram app.
 - Tapping Reels from the UI now starts the service with a 15 s listen window, so "next" and "ruko" work without saying poco again.
 - Added a first-run guide dialog: three steps, five example commands, a screen-control note, and a single "Got it" action. Runs once via guide_seen; reopen it from the new "How to use" row.
@@ -255,20 +255,20 @@ Status: dataset generator, scorer and runner being written now.
 - Build installed 12:29. Verified the reels deep link (bubble and Listening card over the Reels feed) and the guide layout by screenshot.
 - Reminder: accessibility resets on every install, so scrolling and WhatsApp need one manual Enable.
 
-## 2026-10-27 13:00 — 1B model trial, guard, reverted to 270M
+## 2026-10-27 13:00 - 1B model trial, guard, reverted to 270M
 - Confirmed the 270M FunctionGemma is wired and used: load 1.3 s, 236-token prompt, 393 ms generation, ~2.5 s per command, PSS 658 MB.
 - Downloaded Qwen2.5-1.5B-Instruct Q4_K_M (986 MB), added a ChatML prompt path, lenient call parser, and a model_big pref plus a "Big model" row.
 - On device the 1.5B loaded in 5.5 s and took about 9 s per decision, with PSS 1.18 GB.
 - It also invented a weather tool with city Mumbai that was never offered. Added a guard so any tool outside the routed list becomes unsupported and cannot execute.
 - The 1B failed the speed and quality bar, so it is parked as .gguf.off; the 270M is active again and verified. Enabling it needs the pref swap finished so the file rename is not required.
 
-## 2026-10-27 13:19 — Voice orb animation, raster Lottie rejected
+## 2026-10-27 13:19 - Voice orb animation, raster Lottie rejected
 - Inspected the supplied `video-1793086635931.json`: it is a Lottie wrapper around 288 full-frame 636x640 WebP images at 15 fps, 19.2 s, 7.8 MB, no alpha, white background. Not shippable as a bubble asset.
 - Added `VoiceOrbView`: native Canvas wireframe sphere, amber lines, soft glow, dark translucent disc, 76 dp, 60 fps, states IDLE/LISTENING/THINKING/SPEAKING. No new dependency and no asset weight.
 - `BubbleService` now maps listening/thinking/speaking to orb states; added a debug-only `DEBUG_ORB` receiver for state screenshots.
 - Build succeeded at 13:16. Install blocked: device asleep and MIUI returns `INSTALL_FAILED_USER_RESTRICTED`; adb input is blocked and there is no root. Needs the phone unlocked and the install allowed before on-device verification.
 
-## 2026-10-27 13:27 — Orb installed and verified
+## 2026-10-27 13:27 - Orb installed and verified
 - MIUI workaround: `adb push app-debug.apk /data/local/tmp/vp2.apk`, then `adb shell pm install -r --user 0 /data/local/tmp/vp2.apk` succeeds. Streaming `adb install` and `--no-streaming` still fail with `INSTALL_FAILED_USER_RESTRICTED`.
 - Refined `VoiceOrbView` to 26 longitudes and 6 latitudes, all amber, less dense.
 - Installed and verified on device: the 76 dp orb renders over the app, animates (pixel diff between frames), and `DEBUG_ORB` switches listening/thinking/speaking without a crash. The real voice path uses the same `showBubble` states.
@@ -387,3 +387,37 @@ Status: dataset generator, scorer and runner being written now.
 - Updated `legal/README.md` with the gate behavior and a UI test checklist.
 - `./gradlew :app:lintDebug :app:assembleDebug` passes after these changes. APK is `app/build/outputs/apk/debug/app-debug.apk`.
 - Install remains blocked by MIUI with `INSTALL_FAILED_USER_RESTRICTED: Install canceled by user`; the flow still needs visual and device testing. No audio was started.
+
+## 2026-10-29 12:19 - Agent install runbook
+- Added `AGENTS.md` as the canonical first-time install runbook for OpenCode, Codex, and other coding agents. It covers toolchain checks, device selection, build, install, model push, human-only consent and permission steps, verification, and MIUI troubleshooting.
+- Added `CLAUDE.md` as a short pointer to `AGENTS.md` for Claude Code.
+- Added `scripts/agent-install.sh`, a non-interactive installer that checks Java, adb, the Android SDK, and the llama.cpp submodule; builds lint and debug; verifies one arm64 device at API 26 or newer; installs the APK; pushes any local GGUF models; and launches `MainActivity`.
+- The script refuses to bypass the legal consent dialog, accessibility, notification access, overlay, SMS, or call log. MIUI `INSTALL_FAILED_USER_RESTRICTED` exits with the exact phone settings required.
+- Added a coding-agent section to `README.md` pointing at `AGENTS.md`.
+- Verified `bash -n scripts/agent-install.sh` and `./scripts/agent-install.sh --help`. No app code, APK, device state, or audio state changed.
+
+## 2026-10-29 12:27 - OEM install coverage
+- Researched official Samsung, Xiaomi, OnePlus, and Motorola support pages for sideloading, Auto Blocker, Install via USB, accessibility, notification access, overlay, autostart, and battery settings.
+- Added `docs/DEVICE_SUPPORT.md` with the device scope, Samsung/Xiaomi/OnePlus/Motorola matrix, install gates, permission paths, 270M versus 1.5B model guidance, Android 13 restricted-settings fix, scaling steps, and source links.
+- Extended `scripts/agent-install.sh` to read `ro.product.manufacturer`, `ro.product.model`, and `/proc/meminfo`; map Samsung, Xiaomi/Redmi/Poco, OnePlus/Oppo/Realme, and Motorola; warn below the 4GB RAM class; and print OEM-specific setup.
+- Added Samsung Auto Blocker and `INSTALL_FAILED_VERIFICATION_FAILURE` handling. Xiaomi keeps the Install via USB path. OnePlus and Motorola get their own setup output.
+- Updated `AGENTS.md` and `README.md` to point agents at the device matrix and OEM troubleshooting.
+- `bash -n scripts/agent-install.sh` passes. Mock-adb runs exercised the Samsung success path, Samsung Auto Blocker failure path, and the Xiaomi, OnePlus, and Motorola setup output. No physical device was connected, so the OEM-specific install paths were not run on hardware. No app code, APK, or audio state changed.
+
+## 2026-10-29 12:36 - Universal Android ARM support
+- Widened the APK from `arm64-v8a` only to `arm64-v8a` plus `armeabi-v7a`, covering 64-bit and 32-bit ARM Android phones from every OEM.
+- Disabled `GGML_LLAMAFILE` for 32-bit ARM because its FP16 NEON path does not compile on armv7; kept armv7 NEON enabled with `-mfpu=neon` and `GGML_CPU_ARM_ARCH=armv7-a`.
+- Updated `scripts/agent-install.sh` to accept both ARM ABIs. Unknown manufacturers now use the generic Android setup instead of being rejected.
+- Updated `docs/DEVICE_SUPPORT.md`, `AGENTS.md`, and `README.md` to describe all Android OEMs, the two ARM ABIs, 4GB as recommended rather than required, and Apple iOS as unsupported.
+- `./gradlew --console=plain :app:lintDebug :app:assembleDebug` passes. APK contains `arm64-v8a` and `armeabi-v7a`, size 67 MB. No device was connected; the 32-bit runtime path is not hardware-tested.
+
+## 2026-10-29 12:45 - Model policy and tests
+- Added `ModelCatalog.kt`, `ModelPolicy.kt`, and `DeviceProfile.kt` so model names, RAM guidance, and native thread count live in one place instead of hardcoded values in `ModelBrain`.
+- `ModelBrain` now picks 270M when selected and installed, falls back to 1.5B when it is the only model present, and uses 2-4 native threads based on the device CPU count.
+- Added a `Local model` row on the main screen. It shows the active model or `Missing`, and switches between 270M and 1.5B when both files are installed. The switch applies after IRA restarts.
+- Added `--models auto|small|big|both|none` to `scripts/agent-install.sh`. Auto pushes 270M everywhere and 1.5B only on 64-bit devices with 5.5GB or more RAM. `--skip-models` remains as an alias for `--models none`.
+- Updated `AGENTS.md`, `README.md`, and `docs/DEVICE_SUPPORT.md` with the model modes and in-app switch.
+- Added JUnit tests for `ModelPolicy`, `SafetyGuard`, `ConfirmPolicy`, `ArgNormalizer`, and `CommandSplitter`.
+- `./gradlew --console=plain :app:lintDebug :app:assembleDebug :app:testDebugUnitTest` passes. 14 tests pass with no failures. APK contains `arm64-v8a` and `armeabi-v7a`, size 67 MB.
+- Mock-adb checks pass for auto on 32-bit 4GB, auto on 64-bit 8GB, auto with unknown RAM, `--models small`, `--models both`, `--models none`, `--skip-models`, a missing `--models` value, and an invalid mode. Fixed the model push loop overwriting the device model name in the final install message.
+- No device was connected. The model switch, dynamic thread count, and 32-bit runtime still need hardware testing.
