@@ -282,6 +282,24 @@ class MainActivity : Activity() {
         refresh()
     }
 
+    private fun toggleModel() {
+        val prefs = getSharedPreferences(BubbleService.PREFS, MODE_PRIVATE)
+        val small = ModelCatalog.installed(this, ModelCatalog.small)
+        val big = ModelCatalog.installed(this, ModelCatalog.big)
+        if (!small || !big) {
+            Toast.makeText(this,
+                "Install both GGUF models to switch. Run scripts/fetch-models.sh, then reinstall.",
+                Toast.LENGTH_LONG).show()
+            return
+        }
+        val next = !prefs.getBoolean(BubbleService.KEY_BIG_MODEL, false)
+        prefs.edit().putBoolean(BubbleService.KEY_BIG_MODEL, next).apply()
+        Toast.makeText(this,
+            if (next) "Qwen 1.5B selected. Restart IRA to apply." else "FunctionGemma 270M selected. Restart IRA to apply.",
+            Toast.LENGTH_SHORT).show()
+        refresh()
+    }
+
     override fun onStart() {
         super.onStart()
         if (LegalDocs.isAccepted(this)) startWantedService()
@@ -323,6 +341,11 @@ class MainActivity : Activity() {
         val auto = prefs.getBoolean(BubbleService.KEY_AUTO_ANSWER, false)
         val cloudOn = prefs.getBoolean(BubbleService.KEY_CLOUD, true)
         val cloudLive = cloudOn && CloudBrain.isOnline(this)
+        val smallModel = ModelCatalog.installed(this, ModelCatalog.small)
+        val bigModel = ModelCatalog.installed(this, ModelCatalog.big)
+        val activeBig = bigModel && (prefs.getBoolean(BubbleService.KEY_BIG_MODEL, false) || !smallModel)
+        val modelInstalled = smallModel || bigModel
+        val recommendedModel = DeviceProfile.recommendedModel(this)
         val mode = Modes.current(this)
 
         kicker.text = when {
@@ -480,6 +503,20 @@ class MainActivity : Activity() {
                 Toast.LENGTH_SHORT).show()
             refresh()
         })
+        rows.addView(Ui.divider(this))
+        rows.addView(Ui.row(this, "Local model",
+            when {
+                !modelInstalled -> "No GGUF installed. Recommended: " + recommendedModel.label + "."
+                activeBig -> "Qwen 1.5B. Better reasoning, more RAM."
+                recommendedModel == ModelCatalog.big -> "FunctionGemma 270M. Qwen 1.5B fits this phone."
+                else -> "FunctionGemma 270M. Fast on 4 GB."
+            },
+            when {
+                !modelInstalled -> "Missing"
+                activeBig -> "1.5B"
+                else -> "270M"
+            },
+            activeBig, true) { toggleModel() })
         rows.addView(Ui.divider(this))
         val cloudKey = prefs.getString(BubbleService.KEY_GEMINI, "").orEmpty()
         rows.addView(Ui.row(this, "Cloud key",
