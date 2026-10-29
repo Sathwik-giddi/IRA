@@ -11,11 +11,11 @@ android {
         applicationId = "com.voicepoco.app"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "0.1.0-m0"
+        versionCode = 2
+        versionName = "0.2.0-uni"
 
         ndk {
-            abiFilters += "arm64-v8a"
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a")
         }
         externalNativeBuild {
             cmake {
@@ -52,4 +52,5 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation("com.alphacephei:vosk-android:0.3.47")
     implementation("net.java.dev.jna:jna:5.13.0@aar")
+    testImplementation(libs.junit)
 }
