@@ -20,10 +20,7 @@ class ModelBrain(private val context: Context) : Brain {
 
     companion object {
         const val TAG = "VP_BRAIN"
-        private const val N_THREADS = 4
         private const val MAX_TOKENS = 48
-        private const val SMALL_FILE = "functiongemma-270m-it-Q4_K_M.gguf"
-        private const val BIG_FILE = "Qwen2.5-1.5B-Instruct-Q4_K_M.gguf"
     }
 
     private val lock = ReentrantLock()
@@ -31,13 +28,17 @@ class ModelBrain(private val context: Context) : Brain {
     var loadMs = 0L
         private set
     private val modelFile: File by lazy {
-        val dir = File(context.filesDir, "models")
-        val big = File(dir, BIG_FILE)
+        val small = ModelCatalog.file(context, ModelCatalog.small)
+        val big = ModelCatalog.file(context, ModelCatalog.big)
         val wantBig = context.getSharedPreferences(BubbleService.PREFS, Context.MODE_PRIVATE)
             .getBoolean(BubbleService.KEY_BIG_MODEL, false)
-        if (wantBig && big.exists()) big else File(dir, SMALL_FILE)
+        when {
+            wantBig && big.isFile -> big
+            small.isFile -> small
+            else -> big
+        }
     }
-    private val bigModel: Boolean get() = modelFile.name == BIG_FILE
+    private val bigModel: Boolean get() = modelFile.name == ModelCatalog.BIG_FILE
     private val nCtx: Int get() = if (bigModel) 1024 else 768
 
     fun ensureLoaded(): Boolean {
@@ -47,7 +48,7 @@ class ModelBrain(private val context: Context) : Brain {
             return false
         }
         val t0 = System.currentTimeMillis()
-        handle = LlamaBridge.load(modelFile.absolutePath, nCtx, N_THREADS)
+        handle = LlamaBridge.load(modelFile.absolutePath, nCtx, DeviceProfile.threads())
         loadMs = System.currentTimeMillis() - t0
         Log.i(TAG, "MODEL_LOAD_MS=$loadMs ok=${handle != 0L} file=${modelFile.name} ctx=$nCtx")
         return handle != 0L
